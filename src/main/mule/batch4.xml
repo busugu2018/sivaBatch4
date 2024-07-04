@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="40878c02-2bdb-44d9-9b26-0059b75d1cd3" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<flow name="batch4Flow" doc:id="9e523a4a-9ec3-44a0-bd3d-71a23ffc4650" >
+		<http:listener doc:name="Listener" doc:id="f0613ebd-8d38-4af4-92f7-2ff989264243" config-ref="HTTP_Listener_config" path="/batch4">
+			<http:response >
+				<http:body ><![CDATA[Batch complete.]]></http:body>
+			</http:response>
+		</http:listener>
+		<logger level="INFO" doc:name="Logger" doc:id="feaa8894-9b22-4c46-bc81-ed78af459960" message="Log--- Batch begins here: #[payload]"/>
+		<ee:transform doc:name="Transform Message" doc:id="a6c7254f-c1d2-4235-977b-0ddb62ec61e5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload map {
+	name: $.name,
+	id: $.id
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<batch:job jobName="batch4Batch_Job" doc:id="6ac49315-8d28-4ce0-af1e-c29f0c217d9c" blockSize="3" maxFailedRecords="2">
+			<batch:process-records >
+				<batch:step name="Batch_Step" doc:id="e78c4704-6681-484e-b517-9447ef40e7b8" >
+					<logger level="INFO" doc:name="Logger" doc:id="51aacc88-60ce-4092-badc-226888974183" message="Log--- Batch completed..."/>
+					<choice doc:name="Choice" doc:id="d8133dfb-4641-49b7-bf75-44c3aebec3e7" >
+						<when expression="#[payload.id == 2]">
+							<logger level="INFO" doc:name="Logger" doc:id="45dde89e-7507-41f7-bb0a-ba78cfddcf15" message="Log--- error encoded"/>
+							<raise-error description="Age is invalid. Cannot complete transaction." type="Order:Invalid_data"/>
+						</when>
+						<otherwise >
+							<logger level="INFO" doc:name="Logger" doc:id="8feb41be-81d3-45f0-bd81-eec40eab6065" message="Log--- success scenario."/>
+						</otherwise>
+					</choice>
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="8298e132-297c-4080-bd3a-5bbcee93c2ab" size="3">
+						<logger level="INFO" doc:name="Logger" doc:id="f28aff81-90c8-4c6d-a6e3-db08f5741543" />
+					</batch:aggregator>
+				</batch:step>
+				<batch:step name="Batch_Step1" doc:id="35008742-a5ff-4132-a43d-b0cf4f8e0ec1" acceptPolicy="ONLY_FAILURES">
+					<logger level="INFO" doc:name="Logger" doc:id="c7496fab-746e-47c5-8da8-403ca188d411" message="Error Record identified --- #[payload]"/>
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<logger level="INFO" doc:name="Logger" doc:id="8de4b404-bd25-488e-bf2e-81e157ff3357" message="Log--- The entire batch is completed."/>
+			</batch:on-complete>
+		</batch:job>
+	</flow>
+</mule>
